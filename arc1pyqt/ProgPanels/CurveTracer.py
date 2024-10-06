@@ -24,6 +24,12 @@ CB = state.crossbar
 from arc1pyqt.Globals import fonts
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
+
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_CurveTracer_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_CurveTracer_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
+
 from arc1pyqt import ProgPanels
 from .CT_LIVE import CT_LIVE
 
@@ -76,15 +82,40 @@ class ThreadWrapper(BaseThreadWrapper):
     def run(self):
 
         global tag
-
+        # new
+        storeLocation = 0
+        # new
         readTag='R'+str(HW.conf.readmode)+' V='+str(HW.conf.Vread)
 
-        HW.ArC.write_b(str(int(len(self.deviceList)))+"\n")
 
+        HW.ArC.write_b(str(int(len(self.deviceList)))+"\n")
         for device in self.deviceList:
             w=device[0]
             b=device[1]
             self.highlight.emit(w,b)
+
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_CurveTracer_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new
 
             HW.ArC.queue_select(w, b)
 
@@ -121,7 +152,28 @@ class ThreadWrapper(BaseThreadWrapper):
                         self.displayData.emit()
                         endCommand=1
             self.updateTree.emit(w,b)
+    # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
 
+            #wait for the sendData fully operated
+            time.sleep(0.1)
+
+            #due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b])-1
+
+            print(end)
+            # new: put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        #new
 
 class CurveTracer(BaseProgPanel):
 
@@ -400,6 +452,34 @@ class CurveTracer(BaseProgPanel):
 
     def programDevs(self, devs):
         totalCycles = int(self.rightEdits[0].text())
+
+        # new
+        print("set parameter")
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+
+        positive_voltage_max_V     = float(self.leftEdits[0].text())   # Maximum positive voltage (V)
+        negative_voltage_max_V     = float(self.leftEdits[1].text())   # Maximum negative voltage (V)
+        voltage_step_V             = float(self.leftEdits[2].text())   # Voltage step (V)
+        start_voltage_V            = float(self.leftEdits[3].text())   # Starting voltage (V)
+        step_width_ms              = float(self.leftEdits[4].text())   # Step width (s)
+        cycles                     = float(self.rightEdits[0].text())  # Number of cycles
+        interpulse_time_ms         = float(self.rightEdits[1].text())  # Interpulse time (s)
+        positive_current_cutoff_uA = float(self.rightEdits[2].text())  # Positive current cutoff (A)
+        negative_current_cutoff_uA = float(self.rightEdits[3].text())  # Negative current cutoff (A)
+        halt_and_return            = self.returnCheckBox.isChecked()  # Boolean flag for halting and returning
+        bias_type                  = self.combo_IVtype.currentText()   # Bias type (e.g., 'Staircase')
+        iv_span                    = self.combo_IVoption.currentText() # IV span (e.g., 'Start towards V+')
+
+        inserting_data_into_database_singleRead_CurveTracer_setParameters (db_file, insulator, cross_sectional_area,
+                                                                          positive_voltage_max_V, negative_voltage_max_V,
+                                                                          voltage_step_V, start_voltage_V, step_width_ms,
+                                                                          cycles, interpulse_time_ms,
+                                                                          positive_current_cutoff_uA,
+                                                                          negative_current_cutoff_uA, halt_and_return,
+                                                                          bias_type, iv_span)
+        #new
 
         job="201"
         HW.ArC.write_b(job+"\n")   # sends the job

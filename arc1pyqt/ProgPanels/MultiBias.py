@@ -20,6 +20,10 @@ from arc1pyqt.Globals import fonts
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_MultiBias_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_MultiBias_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag = "MB"
 
@@ -39,6 +43,12 @@ class ThreadWrapper(BaseThreadWrapper):
     @BaseThreadWrapper.runner
     def run(self):
 
+        # new
+        storeLocation = 0
+        arrayForStoreData = []  # Array to store the final result
+        db_file = 'Database.db'
+        # new
+
         global tag
 
         if (self.RW==1): # READ operation
@@ -48,16 +58,60 @@ class ThreadWrapper(BaseThreadWrapper):
 
         if (self.RW==2):
             for device in range(1,HW.conf.words+1):
+                print("first write"+ str(device))
+                # new
+                # get the start position of the cycle
+                start_for_wb = len(CB.history[device][self.bLine])
+                end_for_wb   = start_for_wb + 1
+                print("the local position of the wordline and bitline for start")
+                print(device, self.bLine)
+                print(start_for_wb)
+                arrayForStoreData.append((device, self.bLine, start_for_wb,end_for_wb))
+                print(arrayForStoreData)
+                # new
                 valuesNew=HW.ArC.read_floats(3)
                 self.sendData.emit(device,self.bLine,valuesNew[0],valuesNew[1],valuesNew[2],"MB")
 
             for device in range(1,HW.conf.words+1):
+                print("second write"+ str(device))
                 valuesNew=HW.ArC.read_floats(3)
                 if device in self.wLines:
                     self.sendData.emit(device,self.bLine,valuesNew[0],self.V,self.pw,"P")
                 else:
                     self.sendData.emit(device,self.bLine,valuesNew[0],self.V/2,self.pw,"P")
                 self.updateTree.emit(device,self.bLine)
+                print("updateTree  "+ str(device) +"  "+ str(self.bLine))
+
+            for w, b, start_for_wb, end_for_wb in arrayForStoreData:
+                print("Lai Gan")
+                wafer = '6F01'
+                insulator = 'TiOx'
+                cross_sectional_area = 'SA10'
+                die = 'D119'
+
+                # for the whole parameters that are moved to the newest position
+                if (storeLocation == 1):
+                    inserting_data_into_database_allOrRangeRead_MultiBias_setParameters(db_file, wafer, insulator,
+                                                                                        cross_sectional_area, die, w, b)
+                    print("this is the allorRangeRead set parameters")
+                else:  # for the start location
+                    inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                    print("this is the set first location")
+                # this is not the first time set the location, so storeLocation = 1
+                storeLocation = 1
+
+                # Inner loop, modifying start_for_wb and end_for_wb
+                for i in range(start_for_wb, end_for_wb + 1):
+                    # Call the function to insert data into the database, using values from CB.history
+                    inserting_data_into_database_allFunction_experimentalDetail(
+                        db_file,
+                        CB.history[w][b][i][0],  # Assume history is a nested list/dictionary
+                        CB.history[w][b][i][1],
+                        CB.history[w][b][i][2],
+                        CB.history[w][b][i][3],
+                        CB.history[w][b][i][4],
+                        CB.history[w][b][i][5]
+                    )
 
 
 class MultiBias(BaseProgPanel):
@@ -186,6 +240,23 @@ class MultiBias(BaseProgPanel):
         else:
             if HW.ArC is not None:
                 job="50"
+
+                # new
+                print("set parameter")
+                db_file = 'Database.db'
+                insulator = 'TiOx'
+                cross_sectional_area = 'SA10'
+                # valuesNew = HW.ArC.read_floats(3)
+                # current = valuesNew[1] / valuesNew[0]
+                # print(current)
+
+                # multibias set parameters
+                inserting_data_into_database_singleRead_MultiBias_setParameters(
+                    db_file, insulator, cross_sectional_area, str(wLines), self.edit_blines.value(), self.leftEdits[0].text(),
+                    self.leftEdits[1].text(), self.leftEdits[2].text(), None, str(RW)
+                )
+                # new
+
                 HW.ArC.write_b(job+"\n")
 
                 self.sendParams()
@@ -193,6 +264,12 @@ class MultiBias(BaseProgPanel):
                 HW.ArC.write_b(str(len(wLines))+"\n")
                 HW.ArC.write_b(str(self.edit_blines.value())+"\n")
                 HW.ArC.write_b(str(RW)+"\n")
+                print("THIS IS :"+str(wLines))                      # Active wordline
+                print("THIS IS :"+str(self.edit_blines.value()))    # Active bitline
+                print("THIS IS :"+str(self.leftEdits[0].text()))    # Write amplitude
+                print("THIS IS :"+str(self.leftEdits[1].text()))    # Write pulse width
+                print("THIS IS :"+str(self.leftEdits[2].text()))    # Read voltage
+                print("THIS IS :"+str(RW))                          # whether you type read or write
 
                 for nr in wLines:
                     HW.ArC.write_b(str(nr)+"\n")

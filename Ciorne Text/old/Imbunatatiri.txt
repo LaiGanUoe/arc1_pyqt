@@ -1,0 +1,51 @@
+Deci ce asteapta arc-ul?
+
+La un simplu reading nu asteapta aproape nimic. Dar trebuie sa il triggeruiasca.
+
+Practic eu am nevoie de o functie care sa returneze ceva cand s-a efectuat citirea, care sa fie interpretat mai departe de codul meu.
+
+Pentru asta, am nevoie de o functie noua.
+
+Dupa, am nevoie sa includ codul meu, si asta inseamna sa vad cum potrivesc clasele.
+
+Rezumat:
+1.functie noua de returneaza o valoare cand dau apply to one.
+2.functie noua de returneaza cand dau apply to range.
+3.functie noua de returneaza cand dau apply to all.
+4.functie noua de returneaza cand dau apply to wafer.
+-select dice numbers si diferite functii prestabilite de miscare
+5.intelege codul
+6.integreaza codul tau sa mearga offline
+7.integreaza codul tau sa mearga online
+
+
+
+5. in init fac connexiunule pe functii
+in ui fac imaginile propriuzise
+
+
+C:\Users\Alin\Desktop\arc1_pyqt
+
+Deci, pentru apply to one sa zicem,
+
+Pot sa am 3 butoane separate care sa zica apply to one, apply to range, apply to all
+
+Cand apas apply to wafer:
+-Momentan ma rezum doar la apply to one almost solved
+-Momentan ma rezum doar la read_any_row solved
+
+Cum sa iau input? solved
+
+Acum vreau sa vad daca merge sa modific codul sa misc probe-ul cu functia asta in realitate.
+
+
+1.Restore controller to original state
+2.Insert row range*
+3.Insert the other protocol functions*
+4.Insert radio button to select which fc*
+
+
+
+
+
+

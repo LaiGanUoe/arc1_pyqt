@@ -1,0 +1,51 @@
+Connect a signal to read function to be understood by both probelibrary and module
+-set a triggering value to read()
+	-when another function reads 
+x=0
+in read va zice 
+while(x.config!=1)
+1
+else
+break
+Momentan incerc sa vad daca pot pasa variabile in acelasi thread
+
+Abordari pentru a executa rram reading-ul atunci cand mut probe-ul:
+
+1)Mut functiile de protocol in TestModule si tin variabile globale pentru input
+2)Execut 2 functii in acelasi timp cumva astfel incat citirea rram sa se faca in thread in testmodule si read din probe library doar sa asteapta semnalul de finish din rram reading.(nu merge)
+3)Sa ma gandesc la cum accesez thread-ul din modutils
+4)sa trimit semnal de cat timp dureaza citirea ca estimat, dar tot sa comut intre functia de citire rram si cea de mutare wafer.
+
+Cea mai rapida este cea cu toate functiile de test protocol in test module. Dezavantajul este ca fac un dita file-ul care aia e.
+
+Concluzie, nu pot sa fac sa ruleze 2 chestii in acelasi timp
+
+Deci o sa fac schema cu protocolul mutat in thread
+
+28-10-2022 Vineri
+change indexes to config variables*
+move all the global variables in config.py*
+add a protocol function to the main module*
+add all the protocol functions to the main module*
+make a check function to wait until the process is finished to skip move_time*
+add skip odd function*
+include a calibration guide
+m
+make a function to literally read data from arc
+-transpose retention to my module*
+
+Correct skip odd to skip only arrays or crossbars
+(Now it skips only odd column position but sometimes the row starts with an odd number already)*
+
+Display new data in every run, not continue it (Retention)
+
+Export data using numpy or pandas
+
+
+
+
+
+
+
+
+

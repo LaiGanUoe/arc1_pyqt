@@ -16,14 +16,16 @@ import numpy as np
 from PyQt5 import QtGui, QtCore, QtWidgets
 
 import arc1pyqt
-
+#new
+from arc1pyqt.database_methods import inserting_data_into_database_single_and_all_Read
+from arc1pyqt.database_methods import inserting_data_into_database_pulse
+#new
 from .. import state
 HW = state.hardware
 CB = state.crossbar
 APP = state.app
 
 from ..Globals import functions, fonts, styles
-
 
 class _ReadAllWorker(QtCore.QObject):
     finished=QtCore.pyqtSignal()
@@ -61,6 +63,16 @@ class _ReadAllWorker(QtCore.QObject):
 
                 self.sendData.emit(word,bit,Mnow,self.Vread,0,self.tag)
                 self.sendPosition.emit(word,bit)
+                # new
+                db_file = 'Database.db'
+                wafer = '6F01'
+                insulator = 'TiOx'
+                cross_sectional_area = 'SA10'
+                die = 'D119'
+                inserting_data_into_database_single_and_all_Read(db_file, wafer, insulator, cross_sectional_area, die,
+                                                                 word, bit, Mnow, self.Vread, 0, self.tag,
+                                                                 'R'+str(HW.conf.readmode), 'V='+str(HW.conf.Vread))
+                # new
         else:
             # send the type of read - read stand alone custom array
             HW.ArC.write_b(str(2)+"\n")
@@ -90,6 +102,7 @@ class ManualOpsWidget(QtWidgets.QWidget):
         self.initUI()
         self.standAlonePath = os.path.join(os.path.dirname(arc1pyqt.__file__), \
             'Helper')
+
 
     def initUI(self):
 
@@ -132,30 +145,30 @@ class ManualOpsWidget(QtWidgets.QWidget):
         push_updateRead.setMinimumWidth(100)
 
         # Read-out type options drop-down.
-        combo_readType=QtWidgets.QComboBox()
-        combo_readType.setStyleSheet(styles.comboStyle)
-        combo_readType.insertItems(1, ['Classic', 'TIA', 'TIA4P'])
-        combo_readType.currentIndexChanged.connect(self.updateReadType)
-        combo_readType.setCurrentIndex(2)
-        HW.conf.readmode = combo_readType.currentIndex()
+        self.combo_readType=QtWidgets.QComboBox()
+        self.combo_readType.setStyleSheet(styles.comboStyle)
+        self.combo_readType.insertItems(1, ['Classic', 'TIA', 'TIA4P'])
+        self.combo_readType.currentIndexChanged.connect(self.updateReadType)
+        self.combo_readType.setCurrentIndex(2)
+        HW.conf.readmode = self.combo_readType.currentIndex()
 
         # Numerical 'spin box' to set read-out voltage.
-        read_voltage=QtWidgets.QDoubleSpinBox()
+        self.read_voltage=QtWidgets.QDoubleSpinBox()
         #read_voltage.setHeight(25)
-        read_voltage.setStyleSheet(styles.spinStyle)
-        read_voltage.setMinimum(-12)
-        read_voltage.setMaximum(12)
-        read_voltage.setSingleStep(0.05)
-        read_voltage.setValue(0.5)
-        read_voltage.setSuffix(' V')
-        read_voltage.valueChanged.connect(self.setVread)
+        self.read_voltage.setStyleSheet(styles.spinStyle)
+        self.read_voltage.setMinimum(-12)
+        self.read_voltage.setMaximum(12)
+        self.read_voltage.setSingleStep(0.05)
+        self.read_voltage.setValue(0.2)
+        self.read_voltage.setSuffix(' V')
+        self.read_voltage.valueChanged.connect(self.setVread)
 
         # Instantiate GUI row including update read, read-out type and read-out
         # voltage spin-box.
         hbox_2=QtWidgets.QHBoxLayout()
         hbox_2.addWidget(push_updateRead)
-        hbox_2.addWidget(combo_readType)
-        hbox_2.addWidget(read_voltage)
+        hbox_2.addWidget(self.combo_readType)
+        hbox_2.addWidget(self.read_voltage)
 
         # Check-box for custom array.
         self.customArrayCheckbox = QtWidgets.QCheckBox("Custom array")
@@ -217,12 +230,12 @@ class ManualOpsWidget(QtWidgets.QWidget):
         label_V = QtWidgets.QLabel('Voltage (V)')
         label_pw = QtWidgets.QLabel('Duration')
 
-        push_pulsePos = QtWidgets.QPushButton('+Pulse')
-        push_pulsePos.clicked.connect(self.extractParamsPlus)
-        push_pulsePos.setStyleSheet(styles.btnStyle)
-        push_pulseNeg = QtWidgets.QPushButton('-Pulse')
-        push_pulseNeg.clicked.connect(self.extractParamsNeg)
-        push_pulseNeg.setStyleSheet(styles.btnStyle)
+        self.push_pulsePos = QtWidgets.QPushButton('+Pulse')
+        self.push_pulsePos.clicked.connect(self.extractParamsPlus)
+        self.push_pulsePos.setStyleSheet(styles.btnStyle)
+        self.push_pulseNeg = QtWidgets.QPushButton('-Pulse')
+        self.push_pulseNeg.clicked.connect(self.extractParamsNeg)
+        self.push_pulseNeg.setStyleSheet(styles.btnStyle)
 
         self.check_lock = QtWidgets.QCheckBox('Lock')
         self.check_lock.stateChanged.connect(self.lockPulses)
@@ -258,8 +271,8 @@ class ManualOpsWidget(QtWidgets.QWidget):
 
         pulsePanelLayout.addWidget(label_V,0,1)
         pulsePanelLayout.addWidget(label_pw,1,1)
-        pulsePanelLayout.addWidget(push_pulsePos,2,0)
-        pulsePanelLayout.addWidget(push_pulseNeg,2,2)
+        pulsePanelLayout.addWidget(self.push_pulsePos,2,0)
+        pulsePanelLayout.addWidget(self.push_pulseNeg,2,2)
         pulsePanelLayout.addWidget(self.check_lock,2,1)
 
         pulsePanelLayout.setAlignment(label_V, QtCore.Qt.AlignHCenter)
@@ -428,8 +441,22 @@ class ManualOpsWidget(QtWidgets.QWidget):
             currentM = HW.ArC.read_one(CB.word, CB.bit)
 
             tag='S R'+str(HW.conf.readmode)+' V='+str(HW.conf.Vread)
+
+
             functions.updateHistory(CB.word, CB.bit, currentM, float(HW.conf.Vread), \
                     0, tag)
+
+            #new
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            inserting_data_into_database_single_and_all_Read(db_file, wafer, insulator, cross_sectional_area, die,
+                                                             CB.word, CB.bit, currentM, float(HW.conf.Vread), 0, tag,
+                                                             'R'+str(HW.conf.readmode), 'V='+str(HW.conf.Vread),
+                                                             self.combo_readType.currentText(), self.read_voltage.value())
+            #new
             self.setM(CB.word, CB.bit)
 
             functions.displayUpdate.updateSignal.emit(CB.word, CB.bit, 2, APP.displayPoints,99)
@@ -437,7 +464,7 @@ class ManualOpsWidget(QtWidgets.QWidget):
 
     def readAll(self):
         if HW.ArC is not None:
-            self.thread=QtCore.QThread()
+            self.thread = QtCore.QThread()
             self.readAllWorker = _ReadAllWorker()
             self.readAllWorker.moveToThread(self.thread)
             self.thread.started.connect(self.readAllWorker.readAll)
@@ -535,6 +562,25 @@ class ManualOpsWidget(QtWidgets.QWidget):
 
             tag='P'
             functions.updateHistory(CB.word, CB.bit, res, self.amplitude, self.pw, tag)
+
+            #new
+            amp = self.amplitude
+            pw  = self.pw
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            inserting_data_into_database_pulse(db_file, wafer, insulator, cross_sectional_area, die, CB.word, CB.bit,
+                                               res, amp, pw, tag,'R'+str(HW.conf.readmode), 'V='+str(HW.conf.Vread),
+                                               self.pulse_V_pos.text(), self.pulse_pw_pos.text(),
+                                               self.pw_plusDropDown.currentText(), self.pulse_V_neg.text(),
+                                               self.pulse_pw_neg.text(), self.pw_negDropDown.currentText(),
+                                               self.check_lock.isChecked())
+
+
+            #new
+
             self.setM(CB.word, CB.bit)
             functions.displayUpdate.updateSignal.emit(CB.word, CB.bit, 2,
                     APP.displayPoints, 99)

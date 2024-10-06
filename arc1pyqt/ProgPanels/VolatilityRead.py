@@ -1,3 +1,4 @@
+
 from PyQt5 import QtGui, QtCore, QtWidgets
 import sys
 import os
@@ -13,6 +14,10 @@ from arc1pyqt.Globals import fonts
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_VolatilityRead_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_VolatilityRead_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag = "VOL"
 
@@ -38,7 +43,9 @@ class ThreadWrapper(BaseThreadWrapper):
 
         self.disableInterface.emit(True)
         global tag
-
+        # new
+        storeLocation = 0
+        # new
         HW.ArC.write_b(str(int(len(self.deviceList)))+"\n")
 
         for device in self.deviceList:
@@ -46,13 +53,36 @@ class ThreadWrapper(BaseThreadWrapper):
             b=device[1]
             self.highlight.emit(w,b)
 
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_VolatilityRead_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+
+            #get the start position of the cycle
+            start_cycle = len(CB.history[w][b])
+            print(start_cycle)
+            # new
+
             HW.ArC.queue_select(w, b)
 
             Mnow = HW.ArC.read_floats(1)
             self.sendData.emit(w,b,Mnow,self.A,self.pw,tag+'_s')
 
             start=time.time()
-            stop=0
+            stop = 0
 
             while stop==0:
                 # Prepare for batch processing.
@@ -150,7 +180,28 @@ class ThreadWrapper(BaseThreadWrapper):
             self.sendData.emit(w, b, Mnow, HW.conf.Vread, 0, tag+'_e')
 
             self.updateTree.emit(w,b)
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
 
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end_cycle = len(CB.history[w][b]) - 1
+
+            print(end_cycle)
+            # new: put the function experimental details in the database
+            for i in range(start_cycle, end_cycle + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        # new
         self.displayData.emit()
 
 
@@ -354,6 +405,29 @@ class VolatilityRead(BaseProgPanel):
 
         A = float(self.leftEdits[0].text())
         pw = float(self.leftEdits[1].text())/1000000
+
+        # new
+        print("set parameter")
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+
+        pulse_amplitude_V      = float(self.leftEdits[0].text())
+        pulse_width_us         = float(self.leftEdits[1].text())
+        read_batch_size        = float(self.leftEdits[2].text())
+        avg_cycles_per_point_M = float(self.leftEdits[3].text())
+        stop_time_s            = float(self.rightEdits[0].text())
+        stop_t_metric          = float(self.rightEdits[1].text())
+        stop_tolerance_percent = float(self.rightEdits[2].text())
+        stop_option            = self.combo_stopOptions.currentText()
+
+
+        inserting_data_into_database_singleRead_VolatilityRead_setParameters(
+            db_file, insulator, cross_sectional_area, pulse_amplitude_V, pulse_width_us, read_batch_size,
+            avg_cycles_per_point_M, stop_time_s, stop_t_metric, stop_tolerance_percent, stop_option
+        )
+        #new
+
 
         job="33"
         HW.ArC.write_b(job+"\n")

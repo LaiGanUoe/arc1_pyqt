@@ -3,6 +3,7 @@
 # (c) Radu Berdan
 # ArC Instruments Ltd.
 
+#myfolder
 # This code is licensed under GNU v3 license (see LICENSE.txt for details)
 
 ####################################
@@ -23,8 +24,37 @@ from arc1pyqt.Globals import styles, fonts
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_Retention_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_Retention_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
-tag = "RET"
+tag = "RT"
+
+#1: compensate for series resistance, 0:do not compesate
+Rs_compensation=1
+Rs_top=50
+Rs_bottom=50
+subdie=9
+
+current_directory = os.getcwd()
+
+#f = open(os.path.join(current_directory, "target_subdie.csv") , "w")
+
+#we measure Rs from largest width and largest length, bottom-left elecrode on microscope
+#starting with devices with wordline: w1, w2, w3,...wn or length L1, L2, L3, etc
+#Therefore length coefficient (L_ratio) is ratio between Li/Lmax, L1/Lmax, L2/Lmax etc.
+L_ratios=np.array([0.159090909,0.215909091,0.272727273,0.329545455,0.272727273,0.443181818,0.386363636,0.556818182,\
+                    0.5,0.674242424,0.613636364,0.784090909,0.727272727,0.897727273,0.840909091,1,1,\
+                    0.954545455,0.897727273,0.840909091,0.784090909,0.727272727,0.674242424,0.613636364,\
+                    0.556818182,0.5,0.443181818,0.386363636,0.329545455,0.272727273,0.215909091,1])
+
+
+#width ratio of electrode for every device size starting from S1, S2, S3...etc. 
+#In order, device sizes are:  1, 2, 5, 10, 20, 30, 40, 50, 60um
+#in this array the width ratio (or width coefficient) is S1/S9, S1/S8, S1/S7...etc. 
+W_ratios=np.array([0.016666667,0.02,0.025,0.033333333,0.05,0.1,0.2,0.5,1])
+
 
 
 class ThreadWrapper(BaseThreadWrapper):
@@ -36,25 +66,141 @@ class ThreadWrapper(BaseThreadWrapper):
         self.duration=duration
         self.Vread=Vread
 
-    @BaseThreadWrapper.runner
+
+    #comensate for series resistance     
+    def uniform_reading(self, w, b, Vin, Rs_bottom, Rs_top, subdie):
+    
+        
+        #extract the correct L and W ratios accoring to the w/b lines
+        global L_ratios, W_ratios
+        
+        L_ratio = L_ratios[w-1]
+        W_ratio = W_ratios[subdie-1]
+        
+        print("Length %s has ratio: %s"%(w, L_ratio))
+        print("Width %s has ratio: %s"%(subdie, W_ratio))
+        
+        ##########find correct memristor Rm and Vm #########
+        
+        R_tot = HW.ArC.read_one(w, b)
+        #print(R_tot)
+        
+        #Save current Vread in Vd
+        Vd=Vin
+        
+        #extract I total circuit
+        I_tot = Vd / R_tot
+        
+        #compute Memristor resistance by length, width and initial Rs
+        Rm = R_tot - (Rs_bottom*L_ratio*W_ratio)- (Rs_top*L_ratio*W_ratio)
+        
+        #Voltage drop across memristor
+        Vm = I_tot * Rm
+        
+        print("Vm not calibrated is: %s" %Vm)
+        #print("Rm not calibrated is: %s" %Rm)
+        ##########find correction Vadjust to be equal with Vd###########
+        
+        #adjust Itot to have Vm drop at memeristor the quantity we want
+        #here I can try a polynomial fit instead to reduce error
+        I_adjust = Vd / Rm
+        
+        #adjust input voltage to provide Vd across memristor
+        V_adjust = I_adjust * R_tot
+        
+        #take V_adjust as the new reading voltage
+        self.Vread=V_adjust     
+        #apply reading again with the calibrated voltage
+        R_tot_new = HW.ArC.read_one(w, b)
+        #restore Vread to its original value
+        self.Vread = Vd
+        
+        #find Itot_new of the adjusted Voltage
+        I_tot_new = V_adjust / R_tot_new
+        
+        #find the corrected memristor resistance without Rs for the new voltage
+        Rm_new = R_tot - (Rs_bottom*L_ratio*W_ratio)- (Rs_top*L_ratio*W_ratio)
+        
+        #find corrected memristor drop voltage Vm
+        Vm_new = I_tot_new * Rm_new
+        
+        #if Vm_new is not equal to Vd as intended, perform an improved calculus
+        #either by error subtraction or polynomial fit
+        print("Vm new is: %s" %Vm_new)
+        print("Rm new is: %s" %Rm_new)
+        
+        if (R_tot_new and Vm_new) is not None:
+        # Perform calculations with R_tot_new
+            
+            #outputs memristor resistance at calibrated voltage and without series resistance
+            #outputs memristor voltage drop without series resistance influence
+            return float(Rm_new), float(Vm_new)
+    
+    def uniformity_pulsing(self, w, b, Vin, pw, Rs_bottom, Rs_top, subdie, compensation):
+        
+        #if Rs compensated, v takes the compensated value
+        if compensation==1:
+            Rm_read_new, Vm_read_new = self.uniform_reading(w, b, self.Vread, Rs_top, Rs_bottom, subdie)
+            v=(v * Vm_read_new) / self.Vread
+                
+            #print("Voltage applied: %s"%v)
+            
+        #apply the pulse with input voltage v     
+        HW.ArC.pulseread_one(w, b, v, pw)
+        
+        #read current resistance at read voltage 
+        if compensation==1:
+            
+            Rm_read_new2, Vm_read_new2= self.uniform_reading(w, b, self.Vread, Rs_top, Rs_bottom, subdie)
+        else:
+            Rm_read_new2 = HW.ArC.read_one(w, b)
+        
+        #return compensated writing voltage on electrodes
+        #return comensated resistance on memristor after forming pulse
+        return v, Rm_read_new2
+    
+    @BaseThreadWrapper.runner    
     def run(self):
+        # new
+        storeLocation = 0
+        arrayForStoreData = []  # Array to store the final result
+        start_values = []  # Array to store (w, b, start_for_wb)
+        end_values = []  # Array to store (w, b, end_for_wb)
+        db_file = 'Database.db'
+        # new
 
         self.disableInterface.emit(True)
-        global tag
+        global tag, Rs_compensation, Rs_top, Rs_bottom, subdie
 
         start=time.time()
-
+        print(self.deviceList)
         #Initial read
         for device in self.deviceList:
             w=device[0]
             b=device[1]
             self.highlight.emit(w,b)
 
-            Mnow = HW.ArC.read_one(w, b)
-            tag_ = tag+"_s"
-            self.sendData.emit(w,b,Mnow,self.Vread,0,tag_)
-            self.displayData.emit()
+            # new
+            #get the start position of the cycle
+            start_for_wb = len(CB.history[w][b])
+            print("the local position of the wordline and bitline for start")
+            print(w, b)
+            print(start_for_wb)
+            start_values.append((w, b, start_for_wb))
+            # new
 
+         #if series resistance compensation is off
+            if Rs_compensation==0:
+                Rm_new = HW.ArC.read_one(w, b)
+            else:
+                Rm_new, Vm_new = self.uniform_reading(w, b, self.Vread, Rs_top, Rs_bottom, subdie)
+        
+            Rm_new = HW.ArC.read_one(w, b)
+            tag_ = tag+"_s"
+            self.sendData.emit(w,b,Rm_new,self.Vread,0,tag_)
+            self.displayData.emit()
+            
+        #core read
         while True:
             start_op=time.time()
 
@@ -63,9 +209,16 @@ class ThreadWrapper(BaseThreadWrapper):
                 b=device[1]
                 self.highlight.emit(w,b)
 
-                Mnow = HW.ArC.read_one(w, b)
+                #if series resistance compensation is off
+                if Rs_compensation==0:
+                    Rm_new = HW.ArC.read_one(w, b)
+
+                else:
+                    Rm_new, Vm_new = self.uniform_reading(w, b, self.Vread, 10, 10, 1)
+         
                 tag_=tag+"_"+ str(time.time())
-                self.sendData.emit(w,b,Mnow,self.Vread,0,tag_)
+                self.sendData.emit(w,b,Rm_new,Vm_new,0,tag_)
+                #print(self.Vread)
                 self.displayData.emit()
 
             end=time.time()
@@ -81,11 +234,67 @@ class ThreadWrapper(BaseThreadWrapper):
             b=device[1]
             self.highlight.emit(w,b)
 
+            # new
+            # due to some reason, the end is always one bigger than the end number
+            end_for_wb = len(CB.history[w][b]) - 1
+            print("the local position of the wordline and bitline for end")
+            print(w, b)
+            print(end_for_wb)
+            end_values.append((w, b, end_for_wb))
+            # new
+
             Mnow = HW.ArC.read_one(w, b)
             tag_=tag+"_e"
             self.sendData.emit(w,b,Mnow,self.Vread,0,tag_)
             self.displayData.emit()
             self.updateTree.emit(w,b)
+
+
+        # new
+        # Combine (w, b, start_for_wb) and (w, b, end_for_wb) into (w, b, start, end)
+        for (w1, b1, start_for_wb) in start_values:
+            for (w2, b2, end_for_wb) in end_values:
+                if w1 == w2 and b1 == b2:  # Ensure w and b match
+                    arrayForStoreData.append((w1, b1, start_for_wb, end_for_wb))
+
+        print(arrayForStoreData)
+
+
+        for w, b, start_for_wb, end_for_wb in arrayForStoreData:
+            print("Lai Gan")
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_Retention_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:# for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+            #this is not the first time set the location, so storeLocation = 1
+            storeLocation = 1
+
+            # Inner loop, modifying start_for_wb and end_for_wb
+            for i in range(start_for_wb, end_for_wb + 2):
+                # Call the function to insert data into the database, using values from CB.history
+                inserting_data_into_database_allFunction_experimentalDetail(
+                    db_file,
+                    CB.history[w][b][i][0],  # Assume history is a nested list/dictionary
+                    CB.history[w][b][i][1],
+                    CB.history[w][b][i][2],
+                    CB.history[w][b][i][3],
+                    CB.history[w][b][i][4],
+                    CB.history[w][b][i][5]
+                )
+
+        print("this is the allFunction_experimentalDetail")
+
+        print("the end of the whole cycles-------------------------------")
+        # new
 
 
 class Retention(BaseProgPanel):
@@ -234,10 +443,26 @@ class Retention(BaseProgPanel):
         time_mag=float(self.leftEdits[0].text())
         unit=float(self.multiply[self.every_dropDown.currentIndex()])
         every=time_mag*unit
+        print("This is the important information for left 0:" + str(time_mag),  str(unit), str(every))
 
         time_mag=float(self.leftEdits[1].text())
         unit=float(self.multiply[self.duration_dropDown.currentIndex()])
         duration=time_mag*unit
+        # new
+        print("set parameter")
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+
+        # retention set parameters
+        inserting_data_into_database_singleRead_Retention_setParameters(
+            db_file, insulator, cross_sectional_area, float(self.leftEdits[0].text()),
+            float(self.multiply[self.every_dropDown.currentIndex()]), float(self.leftEdits[1].text()),
+            float(self.multiply[self.duration_dropDown.currentIndex()])
+        )
+        # new
+
+        print("This is the important information for left 1:" + str(time_mag),  str(unit), str(duration))
 
         wrapper = ThreadWrapper(devs, every, duration, HW.conf.Vread)
         self.execute(wrapper, wrapper.run)

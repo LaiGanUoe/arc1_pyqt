@@ -1,0 +1,15 @@
+2. Display live to show current location on map*
+   Arata live in ce directie e out of map range*
+   Arata Dice number live*
+
+1. Plot read data in external file (csv)*
+1. Save separate saved data for automation and one apply
+1. Save separate files with separate names*
+1. Make a specific folder for automated readings
+
+5. Improve layout to have boxes with various functions to open when pressing a button *^
+-change selection 2 instead of selection 2 protocol
+
+6. Add remaining read functions: Switch Seeker*
+6. Test Switch Seeker Function
+4. Add scrollable area

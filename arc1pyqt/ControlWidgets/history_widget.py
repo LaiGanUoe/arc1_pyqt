@@ -11,9 +11,10 @@ import sys
 import os
 from functools import partial
 from PyQt5 import QtGui, QtCore, QtWidgets
-
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 import pyqtgraph as pg
 import numpy as np
+import time
 
 from .. import state
 HW = state.hardware
@@ -25,7 +26,11 @@ from .. import Graphics
 from .history_tree_model import HistoryTreeItem, HistoryTreeModel
 from .history_tree_model import HistoryTreeItemDelegate
 
+import threading
+
+
 class HistoryWidget(QtWidgets.QWidget):
+
 
     def __init__(self):
         super().__init__()
@@ -77,6 +82,7 @@ class HistoryWidget(QtWidgets.QWidget):
         for i in range(idx, len(CB.history[w][b])):
             self._updateTree(w, b, i)
 
+
     def _updateTree(self, w, b, historyIdx=-1):
         # historyIdx is used if we want to update the tree
         # using a specific end tag index rather than the last
@@ -96,6 +102,8 @@ class HistoryWidget(QtWidgets.QWidget):
             # returned from `findTopLevel`
             toplevel = existingItem.internalPointer()
             idx = existingItem
+
+
 
         self._deunderline()
         toplevel.setActive(True)
@@ -125,7 +133,14 @@ class HistoryWidget(QtWidgets.QWidget):
                 # add it as x 1
                 item.setDescription('%s × 1' % item.description)
 
+
+        (start, end) = item.range
+        print(start, end)
         insertedIdx = self.historyView.model().appendChild(item, idx)
+
+
+
+
 
     def _displayResults(self, idx):
         item = idx.internalPointer()
@@ -146,6 +161,7 @@ class HistoryWidget(QtWidgets.QWidget):
             self.resultWindow.append(widget)
             widget.show()
             widget.update()
+
 
     def _changeDisplayToSelectedItem(self, idx):
         model = self.historyView.model()
@@ -250,6 +266,7 @@ class HistoryWidget(QtWidgets.QWidget):
         # check out if there's a module registered with the
         # tag. If not return None
         mod = APP.modules.get(modTag, None)
+        print(mod)
 
         # if there is a mod; great! put its name on the tree
         # item's description
@@ -321,9 +338,10 @@ class HistoryWidget(QtWidgets.QWidget):
                     start = end - lastIndex
             except ValueError:
                 pass
-
         # adjust tree item's ranges and tag
         item.setRange(start, end)
         item.setTag(modTag)
+
+
 
         return item

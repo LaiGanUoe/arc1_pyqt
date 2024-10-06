@@ -1,0 +1,16 @@
+
+
+3. Display data in arc for every new device
+4.Improve layout to have scrollable area
+5.Improve layout to have boxes with various functions   to read to open in new side window
+6.Add remaining read functions
+7. Add a guide when loading the automation module
+8. Blocheaza apply functions daca board ul nu e conectat
+9. Scrie abstractul
+10. Fa masuratori automate si include datele in plot-uri
+11. Final Testing on wafer
+12. Save all data in csv files 
+
+************************************************
+
+************************************************

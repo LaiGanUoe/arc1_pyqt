@@ -1,0 +1,107 @@
+    def move_separation(self):
+        print("Moved to separation")
+        time.sleep(time_move)
+
+    def move_contact(self): 
+	#moves to contact position, the in-built function seems to no work too
+        #a,b,c=self.position
+        #contact_relative=contact_val+c
+        self.controller.ask('$StartCommand MoveChuckZ %s R Y %s\n' %(separation_val, z_velocity))
+        print("Moved to Contact height")
+        time.sleep(time_separation)
+
+    def move_relative(self, dx, dy, xy_velocity=100):
+        #move relatively in x-y direction in um units
+        self.controller.ask('$StartCommand MoveChuck %s %s R Y %s\n' % \
+            (dx, dy, xy_velocity))
+        print("Moved by %s, %s" %(dx,dy))
+        time.sleep(time_move_fast)
+
+
+    def read(self):
+        print("Reading...")
+        time.sleep(read_time)
+    
+
+    def read_any_row(self):
+
+        r = self.spinBox_anyrow.value()
+        print(r)
+        self.move_separation()
+        self.move_relative(-w[r],r)
+
+        for i in range(x[r]):
+            print("Current dice: "+str(i))
+            if  int(i%skip_odd==0):
+                self.move_contact()
+                self.read()
+                self.move_separation()
+            if i==(x[r]-1):
+                self.move_relative(-i+w[r],-r) #move back to (0,0)
+            else:
+                self.move_relative(1,0)
+        print("Finished")
+    
+
+
+    def read_row_range(self): #it is used for a range of rows<maximum wafer rows. For that use read all wafer function
+
+        ix1 = 0
+        ix2=  2
+        self.move_relative(-w[ix1],ix1)#move to start position
+
+        for i in range(ix2-ix1+1):
+            for j in range(x[ix1+i]):
+                print("Current row is: "+str(i+ix1))
+                if int(j % skip_odd == 0):
+                    self.move_contact()
+                    self.read()
+                    self.move_separation()
+                if j == (x[ix1+i]-1):
+                    self.move_relative(-j,0)
+                else:
+                    self.move_relative(1,0)
+            if i==(ix2-ix1):
+                self.move_relative(w[ix2], -ix2)
+            else:
+                self.move_relative(-(w[ix1+i+1]-w[ix1+i]),1)
+        print("Finished")
+
+    def read_full_wafer(self):
+
+        ix1 = 0
+        ix2 = x.size-1
+        self.move_relative(-w[ix1], ix1)  # move to start position
+
+        for i in range(ix2 - ix1 + 1):
+            for j in range(x[ix1 + i]):
+                print("Current row is: " + str(i + ix1))
+                if int(j % skip_odd == 0):
+                    self.move_contact()
+                    self.read()
+                    self.move_separation()
+                if j == (x[ix1 + i] - 1):
+                    self.move_relative(-j, 0)
+                else:
+                    self.move_relative(1, 0)
+            if i == (ix2-ix1):
+                self.move_relative(w[ix2], -ix2)
+            else:
+                self.move_relative(-(w[ix1 + i + 1] - w[ix1 + i]), 1)
+        print("Finished")
+
+    def read_defined(self):
+
+        self.move_relative(col[0]-w[row[0]], row[0])
+
+        for i in range(row.size):
+            print("Current Row is: "+str(row[i]))
+            self.move_contact()
+            read()
+            self.move_separation()
+            if i==row.size-1:
+                self.move_relative(-col[i]+w[row[i]],-row[i] )
+            else:
+                self.move_relative((col[i+1]-col[i])-(w[row[i+1]]-w[row[i]]), row[i+1]-row[i])
+        print("Finished")
+    

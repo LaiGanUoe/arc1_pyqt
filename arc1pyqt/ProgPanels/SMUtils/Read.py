@@ -48,7 +48,9 @@ class ThreadWrapper(BaseThreadWrapper):
         Mnow = HW.ArC.read_one(CB.word, CB.bit)
 
         tag='S R'+str(self.readType)+' V='+str(self.Vread)
+
         self.sendData.emit(CB.word, CB.bit, Mnow, float(self.Vread), 0, tag)
+
 
         self.displayData.emit()
         self.updateTree.emit(CB.word, CB.bit)

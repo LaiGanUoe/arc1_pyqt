@@ -24,10 +24,6 @@ from arc1pyqt.Globals import fonts
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 
-from arc1pyqt.database_methods import inserting_data_into_database_singleRead_SwitchSeeker_setParameters
-from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_SwitchSeeker_setParameters
-from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
-from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag = "SS2"
 
@@ -42,9 +38,7 @@ class ThreadWrapper(BaseThreadWrapper):
     def run(self):
 
         global tag
-        # new_code
-        storeLocation = 0
-        # new_code
+
         HW.ArC.write_b(str(int(len(self.deviceList)))+"\n")
 
         for device in self.deviceList:
@@ -52,32 +46,9 @@ class ThreadWrapper(BaseThreadWrapper):
             b=device[1]
             self.highlight.emit(w,b)
 
-            # new_code
-            print(w, b)
-            print("the local position of the wordline and bitline")
-
-            db_file = 'Database.db'
-            wafer = '6F01'
-            insulator = 'TiOx'
-            cross_sectional_area = 'SA10'
-            die = 'D119'
-            #for the whole parameters that are moved to the newest position
-            if (storeLocation == 1):
-                inserting_data_into_database_allOrRangeRead_SwitchSeeker_setParameters(db_file, wafer, insulator,
-                                                                                      cross_sectional_area, die, w, b)
-                print("this is the allorRangeRead set parameters")
-            else:#for the start location
-                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
-                print("this is the set first location")
-
-            #get the start position of the cycle
-            start = len(CB.history[w][b])
-            print(start)
-            # new_code
-
             HW.ArC.queue_select(w, b)
 
-
+            firstPoint=1
             endCommand=0
 
             valuesNew=HW.ArC.read_floats(3)
@@ -88,7 +59,6 @@ class ThreadWrapper(BaseThreadWrapper):
                 endCommand=1
 
             while(endCommand==0):
-
                 valuesOld=valuesNew
 
                 valuesNew=HW.ArC.read_floats(3)
@@ -103,28 +73,6 @@ class ThreadWrapper(BaseThreadWrapper):
                     self.displayData.emit()
                     endCommand=1
             self.updateTree.emit(w,b)
-    # new
-            storeLocation = 1
-            print("this is the end of the little cycle")
-
-            #wait for the sendData fully operated
-            time.sleep(0.1)
-
-            #due to some reason, the end is always one biger than the end number
-            end = len(CB.history[w][b])-1
-
-            print(end)
-            # new: put the function experimental details in the database
-            for i in range(start, end + 1):
-                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
-                                                                            CB.history[w][b][i][1],
-                                                                            CB.history[w][b][i][2],
-                                                                            CB.history[w][b][i][3],
-                                                                            CB.history[w][b][i][4],
-                                                                            CB.history[w][b][i][5])
-            print("this is the allFunction_experimentalDetail")
-        print("the end of the whole cycles-------------------------------")
-        #new
 
 
 class SwitchSeeker(BaseProgPanel):
@@ -282,8 +230,6 @@ class SwitchSeeker(BaseProgPanel):
                     self.programAll)
 
             self.hboxProg.addWidget(push_single)
-
-            # push_single.setEnabled(False)
             self.hboxProg.addWidget(push_range)
             self.hboxProg.addWidget(push_all)
 
@@ -351,42 +297,8 @@ class SwitchSeeker(BaseProgPanel):
         self.programDevs(devs)
 
     def programDevs(self, devs):
-
-        # new_code
-        print("set parameter")
-        db_file = 'Database.db'
-        insulator = 'TiOx'
-        cross_sectional_area = 'SA10'
-
-        reads_in_trailer_card      = float(self.leftEdits[0].text())
-        programming_pulses         = float(self.leftEdits[1].text())
-        pulse_duration_ms          = float(self.leftEdits[2].text())
-        voltage_min_V              = float(self.leftEdits[3].text())
-        voltage_step_V             = float(self.leftEdits[4].text())
-        voltage_max_V              = float(self.leftEdits[5].text())
-        max_switching_cycles       = float(self.leftEdits[6].text())
-        tolerance_band_percent     = float(self.leftEdits[7].text())
-        interpulse_time_ms         = float(self.leftEdits[8].text())
-        resistance_threshold       = float(self.leftEdits[9].text())
-        seeker_algorithm           = self.modeSelectionCombo.currentText()
-        stage_II_polarity          = self.polarityCombo.currentText()
-        skip_stage_I               = self.skipICheckBox.isChecked()
-        read_after_pulse           = self.checkRead.isChecked()
-
-        inserting_data_into_database_singleRead_SwitchSeeker_setParameters(db_file, insulator, cross_sectional_area,
-                                                                           reads_in_trailer_card, programming_pulses,
-                                                                           pulse_duration_ms, voltage_min_V,
-                                                                           voltage_step_V,
-                                                                           voltage_max_V, max_switching_cycles,
-                                                                           tolerance_band_percent, interpulse_time_ms,
-                                                                           resistance_threshold, seeker_algorithm,
-                                                                           stage_II_polarity, skip_stage_I,
-                                                                           read_after_pulse)
-        #new_code
-
         job="%d"%self.getJobCode()
         HW.ArC.write_b(job+"\n")   # sends the job
-        print (job)
 
         self.sendParams()
         wrapper = ThreadWrapper(devs)
@@ -394,7 +306,6 @@ class SwitchSeeker(BaseProgPanel):
 
     def getJobCode(self):
         job=self.modeSelectionCombo.itemData(self.modeSelectionCombo.currentIndex())
-        print(self.modeSelectionCombo.currentIndex())
         return job
 
     def disableProgPanel(self,state):

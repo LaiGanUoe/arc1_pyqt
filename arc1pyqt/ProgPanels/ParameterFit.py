@@ -30,6 +30,10 @@ from arc1pyqt.Globals import fonts, styles, functions
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_ParameterFit_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_ParameterFit_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 MODEL_TMPL="""//////////////////////////////////////////////////
 // VerilogA model for the
@@ -583,6 +587,9 @@ class ThreadWrapper(BaseThreadWrapper):
 
         global tag
         midTag = "%s_%%s_i" % tag
+        # new
+        storeLocation = 0
+        # new
 
         DBG = bool(os.environ.get('PFDBG', False))
 
@@ -600,6 +607,28 @@ class ThreadWrapper(BaseThreadWrapper):
             w = device[0]
             b = device[1]
             self.highlight.emit(w, b)
+
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_ParameterFit_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new
 
             for (i, voltage) in enumerate(voltages):
                 if i == 0:
@@ -623,7 +652,31 @@ class ThreadWrapper(BaseThreadWrapper):
                     self.formFinder(w, b, voltage, self.params["pulse_width"], self.params["interpulse"],
                             self.params["pulses"], startTag % "FF", midTag % "FF", endTag % "FF")
 
+
+
             self.updateTree.emit(w, b)
+
+    # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+            #wait for the sendData fully operated
+            time.sleep(0.1)
+
+            #due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b])-1
+
+            print(end)
+            # put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        #new
 
 
     def curveTracer(self, w, b, vPos, vNeg, vStart, vStep, interpulse, pwstep, ctType, startTag, midTag, endTag):
@@ -683,6 +736,7 @@ class ThreadWrapper(BaseThreadWrapper):
             buffer[1] = curValues[1]
             buffer[2] = curValues[2]
             aTag = midTag
+
             self.displayData.emit()
 
     def formFinder(self, w, b, V, pw, interpulse, nrPulses, startTag, midTag, endTag):
@@ -706,7 +760,7 @@ class ThreadWrapper(BaseThreadWrapper):
         HW.ArC.write_b(str(nrPulses) + "\n") # number of pulses
         HW.ArC.write_b(str(1) + "\n") # single device always
         HW.ArC.queue_select(w, b)
-
+        time.sleep(0.5)
         end = False
 
         #data = []
@@ -720,9 +774,10 @@ class ThreadWrapper(BaseThreadWrapper):
             if (curValues[2] < 99e-9) and (curValues[0] > 0.0):
                 continue
 
-            if (int(curValues[0]) == 0) and (int(curValues[1]) == 0) and (int(curValues[2]) == 0):
+            if (curValues[0] == 0 and curValues[1] == 0 and curValues[2] == 0):
                 end = True
                 aTag = endTag
+                print("aTag is: %s" %aTag)
 
             if (not end):
                 if len(buffer) == 0: # first point!
@@ -739,6 +794,7 @@ class ThreadWrapper(BaseThreadWrapper):
             buffer[1] = curValues[1]
             buffer[2] = curValues[2]
             aTag = midTag
+
             self.displayData.emit()
 
 
@@ -837,8 +893,44 @@ class ParameterFit(Ui_PFParent, BaseProgPanel):
         return False
 
     def gatherData(self):
-        result = {}
+        #new
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
 
+        pulses                       = int(self.nrPulsesEdit.text())                   # Number of pulses
+        pulse_width_s                = float(self.pulseWidthEdit.text())               # Pulse width in seconds
+        bias_interpulse_s            = float(self.interpulseEdit.text())               # Bias interpulse time in seconds
+        iv_interpulse_s              = np.abs(float(self.IVInterpulseEdit.text()))     # IV interpulse time in seconds
+        iv_pulse_width_s             = np.abs(float(self.IVPwEdit.text()))
+        iv_type                      = self.IVTypeCombo.currentText()                  # Type of IV (e.g., 'Staircase')
+        iv_start_V                   = np.abs(float(self.IVStartEdit.text()))          # IV starting voltage
+        iv_step_V                    = np.abs(float(self.IVStepEdit.text()))           # IV step voltage
+        run_iv                       = (not self.noIVCheckBox.isChecked())             # Boolean for running IV or not
+        positive_polarity_v_start_V  = float(self.VStartPosEdit.text())                # Positive polarity starting voltage
+        positive_polarity_v_step_V   = float(self.VStepPosEdit.text())                 # Positive polarity step voltage
+        positive_polarity_v_stop_V   = float(self.VStopPosEdit.text())                 # Positive polarity stopping voltage
+        positive_polarity_iv_stop_V  = np.abs(float(self.IVStopPosEdit.text()))        # Positive polarity IV stopping voltage
+        negative_polarity_v_start_V  = np.abs(float(self.VStartNegEdit.text()))*(-1.0) # Negative polarity starting voltage
+        negative_polarity_v_step_V   = np.abs(float(self.VStepNegEdit.text()))*(-1.0)  # Negative polarity step voltage
+        negative_polarity_v_stop_V   = np.abs(float(self.VStopNegEdit.text()))*(-1.0)  # Negative polarity stopping voltage
+        negative_polarity_iv_stop_V  = np.abs(float(self.IVStopNegEdit.text()))        # Negative polarity IV stopping voltage
+
+        inserting_data_into_database_singleRead_ParameterFit_setParameters(db_file, insulator,cross_sectional_area,
+                                                                           pulses, pulse_width_s, bias_interpulse_s,
+                                                                           iv_interpulse_s, iv_pulse_width_s,
+                                                                           iv_type,iv_start_V, iv_step_V, run_iv,
+                                                                           positive_polarity_v_start_V,
+                                                                           positive_polarity_v_step_V,
+                                                                           positive_polarity_v_stop_V,
+                                                                           positive_polarity_iv_stop_V,
+                                                                           negative_polarity_v_start_V,
+                                                                           negative_polarity_v_step_V,
+                                                                           negative_polarity_v_stop_V,
+                                                                           negative_polarity_iv_stop_V)
+        # new
+
+        result = {}
         result["pulses"] = int(self.nrPulsesEdit.text())
         result["pulse_width"] = float(self.pulseWidthEdit.text())/1.0e6
         result["interpulse"] = float(self.interpulseEdit.text())/1.0e3

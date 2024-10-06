@@ -1,0 +1,27 @@
+6/Nov/22****************************
+2. Display live to show current location on map*
+   Arata live in ce directie e out of map range*
+   Arata Dice number live*
+
+1. Plot read data in external file* (csv)
+7/Nov/2022******************************   
+1. Plot read data in external file (csv)*     
+1. Save separate files with separate names*
+5. Improve layout to have boxes with various functions to open when pressing a button *
+
+8/Nov/2022******************************  
+6. Add remaining read functions: Switch Seeker*
+5. Show every function parameter when the corresponding fct box is selected.
+5. Tested new function combo box
+9. Started draft abstract
+
+9/Nov/2022****************************** 
+6. Fully integrated and tested switch seeker function in arc (it was quite time demanding)
+9. Added more text in the abstract, however Alex wrote a good part of it in the end.
+X. Went to the Demonstrator training
+
+10/Nov/2022****************************** 
+6. Added Form finder, converge to, curve tracer*
+
+
+   

@@ -296,14 +296,16 @@ class BaseProgPanel(QtWidgets.QWidget):
         trigger a tree update (for instance hundreds of reads/pulses over
         ten different devices).
         """
-        if (HW.ArC is None) or (self.thread is not None):
-            return
+        #if (HW.ArC is None) or (self.thread is not None):
+        #    return
 
         if entrypoint is None:
             entrypoint = wrapper.run
 
         self.threadWrapper = wrapper
         self.thread = QtCore.QThread()
+        print("pla")
+        print(wrapper)
 
         # When deferring tree updates store current point in history for the
         # whole crossbar. Once the operation is finished the history tree will
@@ -477,9 +479,9 @@ class BaseThreadWrapper(QtCore.QObject):
         Decorator used to signify a runnable function within a custom measuring
         thread as described in `BaseThreadWrapper`.
         """
-        def inner(self):
+        def inner(self, *args, **kwargs):
             self.disableInterface.emit(True)
-            func(self)
+            func(self, *args, **kwargs)
             self.disableInterface.emit(False)
             self.finished.emit()
             self.displayData.emit()

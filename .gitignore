@@ -27,3 +27,10 @@ arc1pyqt/GeneratedUiElements/*.py
 arc1_docs/*
 arc1docs/*
 arc1pyqt/Documentation/*
+/Positioning Error
+/Log_Data/saved/Alin
+/Log_Data
+/arc1pyqt/Helper/Measurement
+*.csv
+Database.db
+*.xlsx

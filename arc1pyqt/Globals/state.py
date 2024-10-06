@@ -103,8 +103,6 @@ class Application:
     displayMode = DisplayMode.RESISTANCE
     mutex = QMutex()
     waitCondition = QWaitCondition()
-    
-    #position variables
     current_x_D = '-'
     current_y_D = '-'
     current_x_s = '-'
@@ -112,15 +110,6 @@ class Application:
     Dice_no=0
     Subdice_no=0
     check_contact=0 #0-separation, 1-contact, -1 alignment, overtravel, etc.
-    
-    #function chain parameters
-    repeat_fct=0
-    repeat_chain=0
-    time_est=0
-    time_start=0
-
-
-    
 
     #switch seeker inputs
     switch_seek1=0
@@ -135,7 +124,7 @@ class Application:
     switch_seek10=0
     switch_seek_combo1=0
     switch_seek_combo2=0
-    job_ss=0
+    job=0
     skipStageI=0
 
     #form finder inputs
@@ -172,7 +161,7 @@ class Application:
     converge11=0
     converge12=0
 
-    #Curve Tracer inputs
+    #Curve Tracer
     curvetracer1 =0
     curvetracer2 =0
     curvetracer3 =0
@@ -182,44 +171,15 @@ class Application:
     curvetracer7 =0
     curvetracer8 =0
     curvetracer9 =0
-    curvetracer10 =0
     curvetracer_combo1 =0
     curvetracer_combo2 =0
     CB_curvetracer1 =0
-    CB_curvetracer2 =False
     CSp=0
     CSn=0
     totalCycles=0
-    job_ct = "201"
+    job = 0
 
-    #parameterFit inputs
-    parameterfit1=0
-    parameterfit2=0
-    parameterfit3=0
-    parameterfit4=0
-    parameterfit5=0
-    parameterfit6=0
-    parameterfit7=0
-    parameterfit8=0
-    parameterfit9=0
-    parameterfit10=0
-    
-    #RILForming inputs
-    RILForming1=10 #max voltage
-    RILForming2=10 #max cycles
-    RILForming3=120 #step voltage
-    RILForming4=0.001 #pulse width
-    RILForming5=0.99 #gamma
- 
-    #uniformity inputs
-    uniformity1=1 #no resistance bins to be averaged for uniformity
-    CB_uniformity2=1#series resistance compensation :1-yes, 0-no
 
-    #uniform_reading() inputs
-    CB_uniformity3=0
-    Rs_top=1# value in ohm for top electrode series resistance (ask Alin or measure)
-    Rs_bottom=1 # value in ohm for bottom electrode series resistance (ask Alin or measure)
-    
 @dataclass
 class Hardware:
     conf = HWConfig(words=32, bits=32, cycles=50, readmode=2, \

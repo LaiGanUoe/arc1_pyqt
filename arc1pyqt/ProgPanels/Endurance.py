@@ -21,6 +21,12 @@ CB = state.crossbar
 from arc1pyqt.Globals import fonts, functions
 from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
+import time
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_Endurance_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_Endurance_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
+
 
 
 tag = "EN"
@@ -37,6 +43,10 @@ class ThreadWrapper(BaseThreadWrapper):
 
         global tag
 
+        # new
+        storeLocation = 0
+        # new
+
         HW.ArC.write_b(str(int(len(self.deviceList)))+"\n")
 
         for device in self.deviceList:
@@ -44,9 +54,30 @@ class ThreadWrapper(BaseThreadWrapper):
             b=device[1]
             self.highlight.emit(w,b)
 
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_Endurance_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new
+
             HW.ArC.queue_select(w, b)
 
-            firstPoint=1
             endCommand=0
 
             valuesNew=HW.ArC.read_floats(3)
@@ -71,6 +102,27 @@ class ThreadWrapper(BaseThreadWrapper):
                     self.displayData.emit()
                     endCommand=1
             self.updateTree.emit(w,b)
+    # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+            #wait for the sendData fully operated
+            time.sleep(0.1)
+
+            #due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b])-1
+
+            print(end)
+            # put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        #new
 
 
 class Endurance(BaseProgPanel):
@@ -294,6 +346,28 @@ class Endurance(BaseProgPanel):
         self.programDevs(devs)
 
     def programDevs(self, devs):
+
+        # new
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+        left_1 = float(self.leftEdits[0].text())
+        left_2 = float(self.leftEdits[1].text())
+        left_3 = float(self.leftEdits[2].text())
+        left_4 = float(self.leftEdits[3].text())
+        left_5 = float(self.leftEdits[4].text())
+        left_6 = float(self.leftEdits[5].text())
+
+        right_1 = int(self.rightEdits[0].text())
+        right_2 = float(self.rightEdits[1].text())
+        right_3 = float(self.rightEdits[2].text())
+        right_4 = float(self.rightEdits[3].text())
+
+        inserting_data_into_database_singleRead_Endurance_setParameters(db_file, insulator, cross_sectional_area,
+                                                                         left_1, left_2, left_3, left_4, left_5, left_6,
+                                                                         right_1, right_2, right_3, right_4)
+        print("sendParams")
+        #new
 
         job="191"
         HW.ArC.write_b(job+"\n")

@@ -287,6 +287,10 @@ class Arcontrol(QtWidgets.QMainWindow):
         ##########################
         # Import control panels as separate widgets
         hp = HistoryWidget()
+
+
+
+
         self.mo = ManualOpsWidget()
         self.pp = ProgPanelWidget()
         dd = DataDisplayWidget()
@@ -478,9 +482,11 @@ class Arcontrol(QtWidgets.QMainWindow):
             self.arcStatusLabel.setText('Busy')
             self.arcStatusLabel.setStyleSheet(styles.arcStatus_busy)
 
+
         if (status==True):
             self.arcStatusLabel.setText('Busy')
             self.arcStatusLabel.setStyleSheet(styles.arcStatus_busy)
+
 
         if (status==False):
             self.arcStatusLabel.setText('Ready')

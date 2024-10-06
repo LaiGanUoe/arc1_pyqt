@@ -26,9 +26,12 @@ from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
         makeDeviceList, ModTag
 from arc1pyqt.Globals import fonts, styles, functions
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_MultiStateSeeker_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_MultiStateSeeker_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag="MSS"
-
 
 class ThreadWrapper(BaseThreadWrapper):
 
@@ -305,6 +308,10 @@ class ThreadWrapper(BaseThreadWrapper):
     @BaseThreadWrapper.runner
     def run(self):
 
+        # new
+        storeLocation = 0
+        # new
+
         DBG = bool(os.environ.get('MSSDBG', False))
 
         singlePhaseRun = self.params["single_phase_run"]
@@ -314,6 +321,30 @@ class ThreadWrapper(BaseThreadWrapper):
             w = device[0]
             b = device[1]
             self.highlight.emit(w, b)
+
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_MultiStateSeeker_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new
 
             if singlePhaseRun and singlePhase != 1:
                 sign = 1 # use default sign if we are running a single phase
@@ -328,9 +359,56 @@ class ThreadWrapper(BaseThreadWrapper):
                         sign = -1
                     else:
                         self.updateTree.emit(w, b)
+
+                        # new
+                        storeLocation = 1
+                        print("this is the end of the little cycle")
+
+                        # wait for the sendData fully operated
+                        time.sleep(0.1)
+
+                        # due to some reason, the end is always one biger than the end number
+                        end = len(CB.history[w][b]) - 1
+
+                        print(end)
+                        # new: put the function experimental details in the database
+                        for i in range(start, end + 1):
+                            inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                                        CB.history[w][b][i][1],
+                                                                                        CB.history[w][b][i][2],
+                                                                                        CB.history[w][b][i][3],
+                                                                                        CB.history[w][b][i][4],
+                                                                                        CB.history[w][b][i][5])
+                        print("this is the allFunction_experimentalDetail")
+                        print("the end of the whole cycles-------------------------------")
+                        # new
+
                         continue
 
             self.updateTree.emit(w, b)
+
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b]) - 1
+
+            print(end)
+            # new: put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+            print("the end of the whole cycles-------------------------------")
+            # new
 
             if (not singlePhaseRun) or (singlePhase == 2):
                 print("### Runnning MultiStateSeeker Phase II")
@@ -338,10 +416,56 @@ class ThreadWrapper(BaseThreadWrapper):
 
                 if (not stable) and (not DBG):
                     self.updateTree.emit(w, b)
+
+                    # new
+                    storeLocation = 1
+                    print("this is the end of the little cycle")
+
+                    # wait for the sendData fully operated
+                    time.sleep(0.1)
+
+                    # due to some reason, the end is always one biger than the end number
+                    end = len(CB.history[w][b]) - 1
+
+                    print(end)
+                    # new: put the function experimental details in the database
+                    for i in range(start, end + 1):
+                        inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                                    CB.history[w][b][i][1],
+                                                                                    CB.history[w][b][i][2],
+                                                                                    CB.history[w][b][i][3],
+                                                                                    CB.history[w][b][i][4],
+                                                                                    CB.history[w][b][i][5])
+                    print("this is the allFunction_experimentalDetail")
+                    print("the end of the whole cycles-------------------------------")
+                    # new
+
                     continue
 
             self.updateTree.emit(w, b)
 
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b]) - 1
+
+            print(end)
+            # new: put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+            print("the end of the whole cycles-------------------------------")
+            # new
             if (not singlePhaseRun) or (singlePhase == 3):
                 print("### Runnning MultiStateSeeker Phase III")
                 resStates = self.phase3(w, b, sign)
@@ -349,6 +473,29 @@ class ThreadWrapper(BaseThreadWrapper):
                 print("Resistive states:", resStates)
 
             self.updateTree.emit(w, b)
+
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b]) - 1
+
+            print(end)
+            # new: put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        # new
 
         print("### MultiStateSeeker finished!")
 
@@ -547,6 +694,66 @@ class MultiStateSeeker(Ui_MSSParent, BaseProgPanel):
             result["single_phase_run_phase"] = phase
         else:
             result["single_phase_run_phase"] = None
+
+        # new
+        print("set parameter")
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+
+        # Phase I variables
+        single_phase_run = result["single_phase_run"]
+        if result["single_phase_run_phase"] != None:
+            phase_selection = self.singlePhaseRunComboBox.currentText()
+        else:
+            phase_selection = result["single_phase_run_phase"]
+
+        phase_I_reads = result['trailer_reads']
+        phase_I_prog_pulses = result["prog_pulses"]
+        phase_I_pulse_width_ms = result["pulse_duration"] * 1000.0  # Convert seconds to milliseconds if needed
+        phase_I_voltage_min_V = result["vmin"]
+        phase_I_voltage_step_V = result["vstep"]
+        phase_I_voltage_max_V = result["vmax"]
+        phase_I_interpulse_ms = result["interpulse"] * 1000.0  # Convert seconds to milliseconds if needed
+        phase_I_tolerance_band_percent = result["tolerance_band"]
+        phase_I_read_after_pulse = result["read_write"]
+
+        # Phase II variables
+        phase_II_pulse_voltage_V = result["stability_voltage"]
+        phase_II_pulse_width_ms = result["stability_pw"] * 1000.0  # Convert seconds to milliseconds if needed
+        phase_II_state_mode = self.stateModeCombo.currentText()
+        phase_II_stability_test = self.stabilityModeCombo.currentText()
+        phase_II_max_time = result["stability_tmax"]
+        phase_II_tolerance_percent = result["stability_slope"]
+
+        # Phase III variables
+        phase_III_mode = self.assessModeCombo.currentText()
+        phase_III_reads = result["state_reads"]
+        phase_III_max_prog_pulses = result["state_prog_pulses_max"]
+        phase_III_pulse_width_ms = result["state_pulse_duration"] * 1000.0  # Convert seconds to milliseconds if needed
+        phase_III_voltage_bias_V = result["state_voltage"]
+        phase_III_voltage_min_V = result["state_vmin"]
+        phase_III_voltage_step_V = result["state_vstep"]
+        phase_III_voltage_max_V = result["state_vmax"]
+        phase_III_interpulse_ms = result["state_interpulse"] * 1000.0  # Convert seconds to milliseconds if needed
+        phase_III_retention_time = result["state_retention"] * 1000.0  # Assume it's in seconds, convert to milliseconds
+        phase_III_retention_unit = self.stateRetentionMultiplierComboBox.currentText()  # Retention unit as is
+        phase_III_std_deviations = result["state_stdev"]
+        phase_III_monotonicity = self.monotonicityComboBox.currentText()
+        phase_III_reset_counter = result["state_counter_reset"]
+
+        inserting_data_into_database_singleRead_MultiStateSeeker_setParameters(
+            db_file, insulator, cross_sectional_area, single_phase_run, phase_selection, phase_I_reads,
+            phase_I_prog_pulses, phase_I_pulse_width_ms, phase_I_voltage_min_V, phase_I_voltage_step_V, phase_I_voltage_max_V,
+            phase_I_interpulse_ms, phase_I_tolerance_band_percent, phase_I_read_after_pulse,
+            phase_II_pulse_voltage_V, phase_II_pulse_width_ms, phase_II_state_mode, phase_II_stability_test,
+            phase_II_max_time, phase_II_tolerance_percent, phase_III_mode, phase_III_reads, phase_III_max_prog_pulses,
+            phase_III_pulse_width_ms,
+            phase_III_voltage_bias_V, phase_III_voltage_min_V, phase_III_voltage_step_V, phase_III_voltage_max_V,
+            phase_III_interpulse_ms, phase_III_retention_time, phase_III_retention_unit, phase_III_std_deviations,
+            phase_III_monotonicity, phase_III_reset_counter
+        )
+        #new
 
         print(result)
 

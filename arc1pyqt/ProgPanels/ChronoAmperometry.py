@@ -39,6 +39,11 @@ from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
 
 from arc1pyqt.GeneratedUiElements.chronoamperometry import Ui_ChronoAmpParent
 
+import time
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_Chronoamperometry_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_Chronoamperometry_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag = "CRA"
 
@@ -79,16 +84,31 @@ class ThreadWrapper(BaseThreadWrapper):
     def sendParams(self):
         """ Transfer the parameters to ArC ONE """
 
+        p = self.params # shorthand; `self.params` is too long!
+
+        # new
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+        bias            = p["bias"]
+        duration        = p["pw"]
+        duration_unit   = 1
+        number_of_reads = p["num_reads"]
+
+        inserting_data_into_database_singleRead_Chronoamperometry_setParameters(db_file, insulator, cross_sectional_area,
+                                                                         bias, duration, duration_unit,number_of_reads)
+        print("sendParams")
+        #new
+
         self.log("Initiating ChronoAmperometry (job 220)")
         HW.ArC.write_b(str(220) + "\n")
-
-        p = self.params # shorthand; `self.params` is too long!
 
         self.log("Sending ChronoAmperometry params:", p)
         HW.ArC.write_b("%.3e\n" % p["bias"])
         HW.ArC.write_b("%.3e\n" % p["pw"])
         HW.ArC.write_b("%d\n" % p["num_reads"])
         HW.ArC.write_b(str(len(self.deviceList)) + "\n")
+        print(str(len(self.deviceList)) + "\n")
         self.log("Parameters written")
 
     @BaseThreadWrapper.runner
@@ -97,14 +117,61 @@ class ThreadWrapper(BaseThreadWrapper):
         self.DBG = bool(os.environ.get('CRADBG', False))
 
         self.sendParams()
+        # new
+        storeLocation = 0
+        # new
 
         for device in self.deviceList:
             w = device[0]
             b = device[1]
             self.highlight.emit(w, b)
-            self.chronoamperometry(w, b)
-            self.updateTree.emit(w, b)
+            # new
+            print(w, b)
+            print("the local position of the wordline and bitline")
 
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_Chronoamperometry_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new
+
+            self.chronoamperometry(w, b)
+
+
+            self.updateTree.emit(w, b)
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b]) - 1
+
+            print(end)
+            # put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        # new
         self.log("ChronoAmperometry finished")
 
     def chronoamperometry(self, w, b):

@@ -58,6 +58,10 @@ from arc1pyqt.modutils import BaseThreadWrapper, BaseProgPanel, \
 
 from arc1pyqt.GeneratedUiElements.convergeToState import Ui_CTSParent
 
+from arc1pyqt.database_methods import inserting_data_into_database_singleRead_ConvergeToState_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allOrRangeRead_ConvergeToState_setParameters
+from arc1pyqt.database_methods import inserting_data_into_database_allFunction_experimentalDetail
+from arc1pyqt.database_methods import inserting_data_into_database_setFirstLocation
 
 tag = "CTS"
 
@@ -97,11 +101,37 @@ class ThreadWrapper(BaseThreadWrapper):
 
     def sendParams(self):
         """ Transfer the parameters to ArC ONE """
+        p = self.params # shorthand; `self.params` is too long!
+
+        # new_code
+        print("set parameter")
+        db_file = 'Database.db'
+        insulator = 'TiOx'
+        cross_sectional_area = 'SA10'
+
+        target_R             = p["res_target"]
+        initial_polarity     = p["init_pol"]
+        pw_min_ms            = p["pwmin"]
+        pw_step_percent      = p["pwstep"]
+        pw_max_ms            = p["pwmax"]
+        interpulse_time_ms   = p["interpulse"]
+        rt_tolerance_percent = p["res_target_tolerance"]
+        ro_tolerance_percent = p["res_initial_tolerance"]
+        voltage_min_V        = p["vmin"]
+        voltage_step_V       = p["vstep"]
+        voltage_max_V        = p["vmax"]
+        pulses               = p["pulses"]
+
+        inserting_data_into_database_singleRead_ConvergeToState_setParameters(db_file, insulator, cross_sectional_area,
+                                                                              target_R, initial_polarity, pw_min_ms,
+                                                                              pw_step_percent, pw_max_ms,
+                                                                              interpulse_time_ms, rt_tolerance_percent,
+                                                                              ro_tolerance_percent, voltage_min_V,
+                                                                              voltage_step_V, voltage_max_V, pulses)
+        #new_code
 
         self.log("Initiating ConvergeToState (job 21)")
         HW.ArC.write_b(str(21) + "\n") # job number, converge to state
-
-        p = self.params # shorthand; `self.params` is too long!
 
         self.log("Sending ConvergeToState params")
         HW.ArC.write_b("%.3e\n" % p["vmin"])
@@ -121,7 +151,9 @@ class ThreadWrapper(BaseThreadWrapper):
 
     @BaseThreadWrapper.runner
     def run(self):
-
+        # new_code
+        storeLocation = 0
+        # new_code
         self.DBG = bool(os.environ.get('CTSDBG', False))
 
         self.sendParams()
@@ -129,9 +161,56 @@ class ThreadWrapper(BaseThreadWrapper):
         for device in self.deviceList:
             w = device[0]
             b = device[1]
+
             self.highlight.emit(w, b)
+
+            # new_code
+            print(w, b)
+            print("the local position of the wordline and bitline")
+
+            db_file = 'Database.db'
+            wafer = '6F01'
+            insulator = 'TiOx'
+            cross_sectional_area = 'SA10'
+            die = 'D119'
+            #for the whole parameters that are moved to the newest position
+            if (storeLocation == 1):
+                inserting_data_into_database_allOrRangeRead_ConvergeToState_setParameters(db_file, wafer, insulator,
+                                                                                      cross_sectional_area, die, w, b)
+                print("this is the allorRangeRead set parameters")
+            else:#for the start location
+                inserting_data_into_database_setFirstLocation(db_file, wafer, die, w, b)
+                print("this is the set first location")
+
+            #get the start position of the cycle
+            start = len(CB.history[w][b])
+            print(start)
+            # new_code
+
             self.convergeToState(w, b)
             self.updateTree.emit(w, b)
+            # new
+            storeLocation = 1
+            print("this is the end of the little cycle")
+
+            # wait for the sendData fully operated
+            time.sleep(0.1)
+
+            # due to some reason, the end is always one biger than the end number
+            end = len(CB.history[w][b]) - 1
+
+            print(end)
+            # new: put the function experimental details in the database
+            for i in range(start, end + 1):
+                inserting_data_into_database_allFunction_experimentalDetail(db_file, CB.history[w][b][i][0],
+                                                                            CB.history[w][b][i][1],
+                                                                            CB.history[w][b][i][2],
+                                                                            CB.history[w][b][i][3],
+                                                                            CB.history[w][b][i][4],
+                                                                            CB.history[w][b][i][5])
+            print("this is the allFunction_experimentalDetail")
+        print("the end of the whole cycles-------------------------------")
+        # new
 
         self.log("ConvergeToState finished")
 
